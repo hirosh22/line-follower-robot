@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Bluetooth Robot Control</title>
+    <style>
+        body { font-family: sans-serif; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Web Bluetooth Robot Control</h1>
+    <button id="connectButton">Connect to Robot</button>
+    <p id="status">Not Connected</p>
+
+    <div id="controlPanel" style="display: none;">
+        <button data-command="F">Forward</button>
+        <button data-command="L">Left</button>
+        <button data-command="R">Right</button>
+        <button data-command="S">Stop</button>
+    </div>
+
+    <script>
+        const connectButton = document.getElementById('connectButton');
+        const statusDisplay = document.getElementById('status');
+        const controlPanel = document.getElementById('controlPanel');
+        let bleDevice;
+        let bleCharacteristic;
+
+        connectButton.addEventListener('click', async () => {
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"] }] // Replace with YOUR SERVICE UUID
+                });
+
+                statusDisplay.textContent = 'Connecting...';
+                const server = await bleDevice.gatt.connect();
+                const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b"); // Replace with YOUR SERVICE UUID
+                bleCharacteristic = await service.getCharacteristic("beb5483e-36e1-4688-b7f5-ea07361b26a8"); // Replace with YOUR CHARACTERISTIC UUID
+
+                statusDisplay.textContent = 'Connected!';
+                controlPanel.style.display = 'block'; // Show control buttons
+                connectButton.style.display = 'none'; // Hide connect button
+
+                bleDevice.addEventListener('gattserverdisconnected', () => {
+                    statusDisplay.textContent = 'Disconnected';
+                    controlPanel.style.display = 'none';
+                    connectButton.style.display = 'block';
+                });
+
+
+            } catch (error) {
+                console.error('Connection Error:', error);
+                statusDisplay.textContent = `Error: ${error}`;
+            }
+        });
+
+        document.querySelectorAll('#controlPanel button').forEach(button => {
+            button.addEventListener('click', async () => {
+                const command = button.dataset.command;
+                if (!bleCharacteristic) {
+                    alert('Not connected to Bluetooth device. Connect first.');
+                    return;
+                }
+                try {
+                    const encoder = new TextEncoder();
+                    await bleCharacteristic.writeValue(encoder.encode(command));
+                    console.log('Sent command:', command);
+                } catch (error) {
+                    console.error('Error sending command:', error);
+                    statusDisplay.textContent = `Send Error: ${error}`;
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
+
+
+
+
